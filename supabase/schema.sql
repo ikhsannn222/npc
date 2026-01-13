@@ -29,15 +29,28 @@ CREATE TABLE IF NOT EXISTS monitors (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
 );
 
+-- Create profiles table (Public User Data)
+CREATE TABLE IF NOT EXISTS profiles (
+  id UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
+  username TEXT UNIQUE,
+  role TEXT DEFAULT 'user',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc'::text, NOW()) NOT NULL
+);
+
 -- Enable Row Level Security (RLS)
 ALTER TABLE components ENABLE ROW LEVEL SECURITY;
 ALTER TABLE monitors ENABLE ROW LEVEL SECURITY;
+ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 
 -- Create policies to allow public read access
 CREATE POLICY "Public components are viewable by everyone" ON components
   FOR SELECT USING (true);
 
 CREATE POLICY "Public monitors are viewable by everyone" ON monitors
+  FOR SELECT USING (true);
+
+CREATE POLICY "Public profiles are viewable by everyone" ON profiles
   FOR SELECT USING (true);
 
 -- Create policies to allow authenticated users to insert/update/delete (adjust as needed for Admin only)
@@ -58,3 +71,30 @@ CREATE POLICY "Enable update for authenticated users only" ON monitors
 
 CREATE POLICY "Enable delete for authenticated users only" ON monitors
   FOR DELETE USING (auth.role() = 'authenticated');
+
+-- Profiles policies
+CREATE POLICY "Users can insert their own profile" ON profiles
+  FOR INSERT WITH CHECK (auth.uid() = id);
+
+CREATE POLICY "Users can update their own profile" ON profiles
+  FOR UPDATE USING (auth.uid() = id);
+
+-- Function to handle new user signup
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO public.profiles (id, username, role)
+  VALUES (
+    new.id,
+    new.raw_user_meta_data->>'username',
+    COALESCE(new.raw_user_meta_data->>'role', 'user')
+  );
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Trigger
+DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE PROCEDURE public.handle_new_user();
