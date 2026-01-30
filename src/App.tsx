@@ -1,10 +1,11 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import PCBuilder from "./components/PCBuilder";
 import AdminPanel from "./components/AdminPanel";
 import MonitorPage from "./components/MonitorPage";
 import RacikPC from "./components/RacikPC";
 import WishlistPage from "./components/WishlistPage";
 import LoginModal from "./components/LoginModal";
+import gsap from "gsap";
 import {
   Settings,
   Home,
@@ -14,34 +15,50 @@ import {
   LogIn,
   LogOut,
 } from "lucide-react";
-import { Monitor } from "./types/monitor";
 import { useAuth } from "./context/AuthContext";
+import { WishlistProvider, useWishlist } from "./context/WishlistContext";
 
-function App() {
+function AppContent() {
   const [currentPage, setCurrentPage] = useState<
     "builder" | "admin" | "monitor" | "racik" | "wishlist"
   >("builder");
 
-  const [wishlist, setWishlist] = useState<Monitor[]>(() => {
-    const saved = localStorage.getItem("wishlist");
-    return saved ? JSON.parse(saved) : [];
-  });
+  const { wishlist } = useWishlist();
+  const mainRef = useRef<HTMLElement>(null);
 
+  // Initial animation
   useEffect(() => {
-    localStorage.setItem("wishlist", JSON.stringify(wishlist));
-  }, [wishlist]);
+    gsap.from("nav", {
+      y: -100,
+      opacity: 0,
+      duration: 1,
+      ease: "power3.out",
+    });
+
+    // Animate hero text/logo elements staggered
+    gsap.from(".logo-element", {
+      y: -20,
+      opacity: 0,
+      duration: 0.8,
+      stagger: 0.1,
+      ease: "power2.out",
+      delay: 0.5,
+    });
+  }, []);
+
+  // Page transition animation
+  useEffect(() => {
+    if (mainRef.current) {
+      gsap.fromTo(
+        mainRef.current,
+        { opacity: 0, y: 20 },
+        { opacity: 1, y: 0, duration: 0.5, ease: "power2.out" },
+      );
+    }
+  }, [currentPage]);
+
   const [isLoginOpen, setIsLoginOpen] = useState(false);
   const { user, logout } = useAuth();
-
-  const addToWishlist = (monitor: Monitor) => {
-    if (!wishlist.find((m) => m.id === monitor.id)) {
-      setWishlist([...wishlist, monitor]);
-    }
-  };
-
-  const removeFromWishlist = (monitor: Monitor) => {
-    setWishlist(wishlist.filter((m) => m.id !== monitor.id));
-  };
 
   const handleAdminClick = () => {
     if (!user || user.role !== "admin") {
@@ -61,7 +78,7 @@ function App() {
               className="flex items-center gap-4 group cursor-pointer"
               onClick={() => setCurrentPage("builder")}
             >
-              <div className="relative">
+              <div className="relative logo-element">
                 <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-full blur opacity-25 group-hover:opacity-75 transition duration-500"></div>
                 <img
                   src="/assets/image/npc_logo.png"
@@ -69,7 +86,7 @@ function App() {
                   alt="NPC Logo"
                 />
               </div>
-              <div className="block">
+              <div className="block logo-element">
                 <h1 className="text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-white to-slate-400 leading-none tracking-tight">
                   NPC
                 </h1>
@@ -174,22 +191,15 @@ function App() {
       </nav>
 
       {/* Main Content Area with top padding for fixed navbar */}
-      <main className="flex-1 pt-24 animate-fade-in pb-24 md:pb-12">
+      <main ref={mainRef} className="flex-1 pt-24 pb-24 md:pb-12">
         {currentPage === "builder" ? (
           <PCBuilder />
         ) : currentPage === "racik" ? (
           <RacikPC />
         ) : currentPage === "monitor" ? (
-          <MonitorPage
-            wishlist={wishlist}
-            onAddToWishlist={addToWishlist}
-            onRemoveFromWishlist={removeFromWishlist}
-          />
+          <MonitorPage />
         ) : currentPage === "wishlist" ? (
-          <WishlistPage
-            wishlist={wishlist}
-            onRemoveFromWishlist={removeFromWishlist}
-          />
+          <WishlistPage />
         ) : (
           <AdminPanel />
         )}
@@ -261,6 +271,14 @@ function App() {
 
       <LoginModal isOpen={isLoginOpen} onClose={() => setIsLoginOpen(false)} />
     </div>
+  );
+}
+
+function App() {
+  return (
+    <WishlistProvider>
+      <AppContent />
+    </WishlistProvider>
   );
 }
 

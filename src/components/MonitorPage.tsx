@@ -1,22 +1,17 @@
 import { useState, useEffect } from "react";
+import gsap from "gsap";
 import { api, formatPrice } from "../lib/api";
 import { Search, Star, Zap, Grid3x3, List, Filter, Heart } from "lucide-react";
 import { Monitor } from "../types/monitor";
+import MarketplaceButtons from "./MarketplaceButtons";
+import { useWishlist } from "../context/WishlistContext";
 
 type FilterType = "all" | "gaming" | "professional" | "budget";
 type ViewType = "grid" | "list";
 
-interface MonitorPageProps {
-  wishlist: Monitor[];
-  onAddToWishlist: (monitor: Monitor) => void;
-  onRemoveFromWishlist: (monitor: Monitor) => void;
-}
+export default function MonitorPage() {
+  const { addToWishlist, removeFromWishlist, isInWishlist } = useWishlist();
 
-export default function MonitorPage({
-  wishlist,
-  onAddToWishlist,
-  onRemoveFromWishlist,
-}: MonitorPageProps) {
   const [monitors, setMonitors] = useState<Monitor[]>([]);
   const [filteredMonitors, setFilteredMonitors] = useState<Monitor[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,6 +28,24 @@ export default function MonitorPage({
     applyFilters();
   }, [monitors, searchQuery, filterType]);
 
+  // Animate cards when filteredMonitors changes
+  useEffect(() => {
+    if (filteredMonitors.length > 0) {
+      gsap.fromTo(
+        ".monitor-card",
+        { opacity: 0, y: 50 },
+        {
+          opacity: 1,
+          y: 0,
+          duration: 0.5,
+          stagger: 0.1,
+          ease: "back.out(1.2)",
+          clearProps: "all", // Clean up to avoid conflict with hover effects
+        },
+      );
+    }
+  }, [filteredMonitors, viewType]);
+
   const fetchMonitors = async () => {
     const data = await api.getMonitors();
     setMonitors(data);
@@ -45,7 +58,7 @@ export default function MonitorPage({
     filtered = filtered.filter(
       (m) =>
         m.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        m.description.toLowerCase().includes(searchQuery.toLowerCase())
+        m.description.toLowerCase().includes(searchQuery.toLowerCase()),
     );
 
     if (filterType === "gaming") {
@@ -79,10 +92,6 @@ export default function MonitorPage({
 
   const featuredMonitors = monitors.filter((m) => m.featured);
 
-  const isInWishlist = (monitorId: number) => {
-    return wishlist.some((m) => m.id === monitorId);
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-50">
       <div className="max-w-7xl mx-auto px-4 py-8">
@@ -112,7 +121,7 @@ export default function MonitorPage({
               {featuredMonitors.map((monitor) => (
                 <div
                   key={monitor.id}
-                  className="bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all overflow-hidden border-2 border-yellow-200 cursor-pointer group"
+                  className="monitor-card bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all overflow-hidden border-2 border-yellow-200 cursor-pointer group"
                   onClick={() => setSelectedMonitor(monitor)}
                 >
                   <div className="relative h-48 bg-gradient-to-br from-slate-100 to-slate-200 overflow-hidden">
@@ -140,7 +149,7 @@ export default function MonitorPage({
                     <div className="flex gap-2 mb-4 flex-wrap">
                       <span
                         className={`text-xs font-semibold px-2 py-1 rounded-full ${getResolutionBadgeColor(
-                          monitor.resolution
+                          monitor.resolution,
                         )}`}
                       >
                         {monitor.resolution}
@@ -150,7 +159,7 @@ export default function MonitorPage({
                       </span>
                       <span
                         className={`text-xs font-semibold px-2 py-1 rounded-full ${getPanelTypeBadgeColor(
-                          monitor.panel_type
+                          monitor.panel_type,
                         )}`}
                       >
                         {monitor.panel_type}
@@ -160,7 +169,7 @@ export default function MonitorPage({
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mb-4">
                       <div>
                         <div className="text-2xl font-bold text-slate-800">
                           {formatPrice(monitor.price)}
@@ -170,18 +179,23 @@ export default function MonitorPage({
                         <Star
                           size={16}
                           className={`fill-current ${getRatingColor(
-                            monitor.rating
+                            monitor.rating,
                           )}`}
                         />
                         <span
                           className={`font-semibold ${getRatingColor(
-                            monitor.rating
+                            monitor.rating,
                           )}`}
                         >
                           {monitor.rating}/5
                         </span>
                       </div>
                     </div>
+
+                    <MarketplaceButtons
+                      name={monitor.title}
+                      links={monitor.marketplace_links}
+                    />
                   </div>
                 </div>
               ))}
@@ -291,7 +305,7 @@ export default function MonitorPage({
                   {filteredMonitors.map((monitor) => (
                     <div
                       key={monitor.id}
-                      className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all overflow-hidden cursor-pointer border border-slate-200 hover:border-blue-300 group"
+                      className="monitor-card bg-white rounded-xl shadow-md hover:shadow-lg transition-all overflow-hidden cursor-pointer border border-slate-200 hover:border-blue-300 group"
                       onClick={() => setSelectedMonitor(monitor)}
                     >
                       <div className="relative h-40 bg-gradient-to-br from-slate-100 to-slate-200 overflow-hidden">
@@ -320,7 +334,7 @@ export default function MonitorPage({
                         <div className="flex gap-1 mb-3 flex-wrap">
                           <span
                             className={`text-xs font-semibold px-2 py-0.5 rounded ${getResolutionBadgeColor(
-                              monitor.resolution
+                              monitor.resolution,
                             )}`}
                           >
                             {monitor.resolution}
@@ -330,7 +344,7 @@ export default function MonitorPage({
                           </span>
                           <span
                             className={`text-xs font-semibold px-2 py-0.5 rounded ${getPanelTypeBadgeColor(
-                              monitor.panel_type
+                              monitor.panel_type,
                             )}`}
                           >
                             {monitor.panel_type}
@@ -345,18 +359,23 @@ export default function MonitorPage({
                             <Star
                               size={14}
                               className={`fill-current ${getRatingColor(
-                                monitor.rating
+                                monitor.rating,
                               )}`}
                             />
                             <span
                               className={`text-sm font-semibold ${getRatingColor(
-                                monitor.rating
+                                monitor.rating,
                               )}`}
                             >
                               {monitor.rating}
                             </span>
                           </div>
                         </div>
+
+                        <MarketplaceButtons
+                          name={monitor.title}
+                          links={monitor.marketplace_links}
+                        />
                       </div>
                     </div>
                   ))}
@@ -366,7 +385,7 @@ export default function MonitorPage({
                   {filteredMonitors.map((monitor) => (
                     <div
                       key={monitor.id}
-                      className="bg-white rounded-lg shadow-md hover:shadow-lg transition-all overflow-hidden cursor-pointer border border-slate-200 hover:border-blue-300 p-4 flex gap-4 group"
+                      className="monitor-card bg-white rounded-lg shadow-md hover:shadow-lg transition-all overflow-hidden cursor-pointer border border-slate-200 hover:border-blue-300 p-4 flex gap-4 group"
                       onClick={() => setSelectedMonitor(monitor)}
                     >
                       <div className="relative w-32 h-24 bg-gradient-to-br from-slate-100 to-slate-200 rounded-lg overflow-hidden flex-shrink-0">
@@ -395,7 +414,7 @@ export default function MonitorPage({
                         <div className="flex gap-2 flex-wrap mb-2">
                           <span
                             className={`text-xs font-semibold px-2 py-0.5 rounded ${getResolutionBadgeColor(
-                              monitor.resolution
+                              monitor.resolution,
                             )}`}
                           >
                             {monitor.resolution}
@@ -405,7 +424,7 @@ export default function MonitorPage({
                           </span>
                           <span
                             className={`text-xs font-semibold px-2 py-0.5 rounded ${getPanelTypeBadgeColor(
-                              monitor.panel_type
+                              monitor.panel_type,
                             )}`}
                           >
                             {monitor.panel_type}
@@ -424,17 +443,24 @@ export default function MonitorPage({
                           <Star
                             size={16}
                             className={`fill-current ${getRatingColor(
-                              monitor.rating
+                              monitor.rating,
                             )}`}
                           />
                           <span
                             className={`font-semibold text-sm ${getRatingColor(
-                              monitor.rating
+                              monitor.rating,
                             )}`}
                           >
                             {monitor.rating}
                           </span>
                         </div>
+                      </div>
+
+                      <div className="px-4 pb-4 md:pl-4 md:pb-4 md:pt-0 pt-0 w-full md:w-auto self-center">
+                        <MarketplaceButtons
+                          name={monitor.title}
+                          links={monitor.marketplace_links}
+                        />
                       </div>
                     </div>
                   ))}
@@ -524,12 +550,12 @@ export default function MonitorPage({
                       <Star
                         size={20}
                         className={`fill-current ${getRatingColor(
-                          selectedMonitor.rating
+                          selectedMonitor.rating,
                         )}`}
                       />
                       <span
                         className={`text-2xl font-bold ${getRatingColor(
-                          selectedMonitor.rating
+                          selectedMonitor.rating,
                         )}`}
                       >
                         {selectedMonitor.rating}
@@ -542,12 +568,12 @@ export default function MonitorPage({
                 <button
                   onClick={() => {
                     if (isInWishlist(selectedMonitor.id)) {
-                      onRemoveFromWishlist(selectedMonitor);
+                      removeFromWishlist(selectedMonitor);
                     } else {
-                      onAddToWishlist(selectedMonitor);
+                      addToWishlist(selectedMonitor);
                     }
                   }}
-                  className={`w-full font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 ${
+                  className={`w-full font-bold py-3 rounded-lg transition-colors flex items-center justify-center gap-2 mb-4 ${
                     isInWishlist(selectedMonitor.id)
                       ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100"
                       : "bg-blue-600 hover:bg-blue-700 text-white"
@@ -563,6 +589,11 @@ export default function MonitorPage({
                     ? "Remove from Wishlist"
                     : "Add to Wishlist"}
                 </button>
+
+                <MarketplaceButtons
+                  name={selectedMonitor.title}
+                  links={selectedMonitor.marketplace_links}
+                />
               </div>
             </div>
           </div>

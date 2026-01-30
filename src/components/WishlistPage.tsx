@@ -1,16 +1,12 @@
 import { Monitor } from "../types/monitor";
 import { formatPrice } from "../lib/api";
 import { Star, Heart } from "lucide-react";
+import { useWishlist } from "../context/WishlistContext";
+import MarketplaceButtons from "./MarketplaceButtons";
 
-interface WishlistPageProps {
-  wishlist: Monitor[];
-  onRemoveFromWishlist: (monitor: Monitor) => void;
-}
+export default function WishlistPage() {
+  const { wishlist, removeFromWishlist } = useWishlist();
 
-export default function WishlistPage({
-  wishlist,
-  onRemoveFromWishlist,
-}: WishlistPageProps) {
   const getRatingColor = (rating: number) => {
     if (rating >= 4.7) return "text-red-600";
     if (rating >= 4.5) return "text-orange-600";
@@ -20,13 +16,15 @@ export default function WishlistPage({
   return (
     <div className="min-h-screen bg-slate-50 p-6">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-3xl font-bold text-slate-800 mb-2 flex items-center gap-2">
-          <Heart className="text-red-500 fill-current" />
-          Wishlist Saya
-        </h1>
-        <p className="text-slate-600 mb-8">
-          Daftar monitor impian yang Anda simpan.
-        </p>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-slate-800 mb-2 flex items-center gap-2">
+            <Heart className="text-red-500 fill-current" />
+            Wishlist Saya
+          </h1>
+          <p className="text-slate-600">
+            Daftar monitor impian yang Anda simpan.
+          </p>
+        </div>
 
         {wishlist.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-xl shadow-sm border border-slate-200">
@@ -43,9 +41,9 @@ export default function WishlistPage({
             {wishlist.map((monitor) => (
               <div
                 key={monitor.id}
-                className="bg-white rounded-xl shadow-md overflow-hidden border border-slate-200 group"
+                className="bg-white rounded-xl shadow-md overflow-hidden border border-slate-200 group flex flex-col h-full"
               >
-                <div className="relative h-48 bg-gradient-to-br from-slate-100 to-slate-200 overflow-hidden">
+                <div className="relative h-48 bg-gradient-to-br from-slate-100 to-slate-200 overflow-hidden flex-shrink-0">
                   {monitor.image_url && (
                     <img
                       src={monitor.image_url}
@@ -54,7 +52,7 @@ export default function WishlistPage({
                     />
                   )}
                   <button
-                    onClick={() => onRemoveFromWishlist(monitor)}
+                    onClick={() => removeFromWishlist(monitor)}
                     className="absolute top-3 right-3 bg-white/90 p-2 rounded-full text-red-500 hover:bg-red-50 transition-colors shadow-sm"
                     title="Hapus dari wishlist"
                   >
@@ -62,7 +60,7 @@ export default function WishlistPage({
                   </button>
                 </div>
 
-                <div className="p-5">
+                <div className="p-5 flex-1 flex flex-col">
                   <h3 className="font-bold text-slate-800 mb-2 line-clamp-1">
                     {monitor.title}
                   </h3>
@@ -75,7 +73,7 @@ export default function WishlistPage({
                     </span>
                   </div>
 
-                  <div className="flex items-center justify-between mt-4">
+                  <div className="flex items-center justify-between mt-auto mb-4">
                     <div className="text-xl font-bold text-slate-800">
                       {formatPrice(monitor.price)}
                     </div>
@@ -83,18 +81,23 @@ export default function WishlistPage({
                       <Star
                         size={16}
                         className={`fill-current ${getRatingColor(
-                          monitor.rating
+                          monitor.rating,
                         )}`}
                       />
                       <span
                         className={`font-semibold ${getRatingColor(
-                          monitor.rating
+                          monitor.rating,
                         )}`}
                       >
                         {monitor.rating}
                       </span>
                     </div>
                   </div>
+
+                  <MarketplaceButtons
+                    name={monitor.title}
+                    links={monitor.marketplace_links}
+                  />
                 </div>
               </div>
             ))}

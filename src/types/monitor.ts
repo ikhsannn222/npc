@@ -10,4 +10,9 @@ export interface Monitor {
   rating: number;
   featured: boolean;
   image_url: string;
+  marketplace_links?: {
+    shopee?: string;
+    tokopedia?: string;
+    lazada?: string;
+  };
 }

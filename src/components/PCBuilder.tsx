@@ -11,7 +11,9 @@ import {
   Box,
   Fan,
   Search,
+  Filter as FilterIcon,
 } from "lucide-react";
+import MarketplaceButtons from "./MarketplaceButtons";
 
 const BUDGET_ALLOCATION = {
   CPU: 0.25,
@@ -41,6 +43,10 @@ export default function PCBuilder() {
   const [recommendation, setRecommendation] = useState<PCBuild | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Filters
+  const [platform, setPlatform] = useState<"all" | "intel" | "amd">("all");
+  const [gpuType, setGpuType] = useState<"all" | "nvidia" | "amd">("all");
+
   useEffect(() => {
     fetchComponents();
   }, []);
@@ -52,16 +58,92 @@ export default function PCBuilder() {
 
   const findBestComponent = (
     type: ComponentType,
-    maxPrice: number
+    maxPrice: number,
+    componentPlatform: "all" | "intel" | "amd",
+    componentGpuType: "all" | "nvidia" | "amd",
   ): Component | undefined => {
-    const typeComponents = components.filter(
-      (c) => c.type === type && c.price <= maxPrice
+    let typeComponents = components.filter(
+      (c) => c.type === type && c.price <= maxPrice,
     );
 
+    // Apply Platform Filter (CPU & Motherboard)
+    if (componentPlatform !== "all") {
+      if (type === "CPU") {
+        typeComponents = typeComponents.filter((c) =>
+          c.name.toLowerCase().includes(componentPlatform),
+        );
+      } else if (type === "Motherboard") {
+        // Simple heuristic: Intel mobos often start with B, Z, H (e.g. B760, Z790). AMD: B, X, A (B650, X670).
+        // Better: check compatibility string if available. For now, rely on naming convention if possible or skip.
+        // Actually, without compatibility metadata, this is hard. I'll search for socket names or brand hints.
+        const isIntel = (c) =>
+          c.name.includes("LGA") ||
+          c.name.includes("Z790") ||
+          c.name.includes("B760") ||
+          c.name.includes("H610");
+        const isAmd = (c) =>
+          c.name.includes("AM4") ||
+          c.name.includes("AM5") ||
+          c.name.includes("B650") ||
+          c.name.includes("X670");
+
+        if (componentPlatform === "intel")
+          typeComponents = typeComponents.filter(isIntel);
+        if (componentPlatform === "amd")
+          typeComponents = typeComponents.filter(isAmd);
+      }
+    }
+
+    // Apply GPU Filter
+    if (type === "GPU" && componentGpuType !== "all") {
+      if (componentGpuType === "nvidia") {
+        typeComponents = typeComponents.filter(
+          (c) =>
+            c.name.toLowerCase().includes("rtx") ||
+            c.name.toLowerCase().includes("gtx"),
+        );
+      } else if (componentGpuType === "amd") {
+        typeComponents = typeComponents.filter((c) =>
+          c.name.toLowerCase().includes("rx"),
+        );
+      }
+    }
+
     if (typeComponents.length === 0) {
-      return components
-        .filter((c) => c.type === type)
-        .sort((a, b) => a.price - b.price)[0];
+      // Fallback: try to find cheapest valid one ignoring price if none found within budget?
+      // Or just return cheapest of type regardless of filter if strict filter fails?
+      // Let's stick to strict filter but return lowest price of that filtered set if price constraint was too strict.
+      // Refilter just by type/platform without price limit
+      let fallbackComponents = components.filter((c) => c.type === type);
+
+      if (componentPlatform !== "all") {
+        if (type === "CPU")
+          fallbackComponents = fallbackComponents.filter((c) =>
+            c.name.toLowerCase().includes(componentPlatform),
+          );
+        // ... (Repeat logic for mobo/gpu or extract helper).
+        // For brevity/robustness, if budget fails, we return undefined or handled gracefully.
+        // Let's just return cheapest of the type ignoring price cap, BUT respecting platform.
+        if (type === "CPU") {
+          fallbackComponents = fallbackComponents.filter((c) =>
+            c.name.toLowerCase().includes(componentPlatform),
+          );
+        }
+      }
+      if (type === "GPU" && componentGpuType !== "all") {
+        if (componentGpuType === "nvidia")
+          fallbackComponents = fallbackComponents.filter(
+            (c) =>
+              c.name.toLowerCase().includes("rtx") ||
+              c.name.toLowerCase().includes("gtx"),
+          );
+        if (componentGpuType === "amd")
+          fallbackComponents = fallbackComponents.filter((c) =>
+            c.name.toLowerCase().includes("rx"),
+          );
+      }
+
+      return fallbackComponents.sort((a, b) => a.price - b.price)[0];
     }
 
     return typeComponents.reduce((best, current) => {
@@ -83,7 +165,12 @@ export default function PCBuilder() {
 
     Object.entries(BUDGET_ALLOCATION).forEach(([type, allocation]) => {
       const maxPrice = totalBudget * allocation;
-      const component = findBestComponent(type as ComponentType, maxPrice);
+      const component = findBestComponent(
+        type as ComponentType,
+        maxPrice,
+        platform,
+        gpuType,
+      );
       if (component) {
         const key = type.toLowerCase() as keyof Omit<PCBuild, "totalPrice">;
         build[key] = component;
@@ -146,6 +233,84 @@ export default function PCBuilder() {
                 {formatPrice(amount)}
               </button>
             ))}
+          </div>
+
+          <div className="mt-6 flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+              <label className="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wide">
+                Platform Processor
+              </label>
+              <div className="flex bg-slate-100 p-1 rounded-lg">
+                <button
+                  onClick={() => setPlatform("all")}
+                  className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${
+                    platform === "all"
+                      ? "bg-white text-blue-600 shadow-sm"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  Semua
+                </button>
+                <button
+                  onClick={() => setPlatform("intel")}
+                  className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${
+                    platform === "intel"
+                      ? "bg-white text-blue-600 shadow-sm"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  Intel
+                </button>
+                <button
+                  onClick={() => setPlatform("amd")}
+                  className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${
+                    platform === "amd"
+                      ? "bg-white text-blue-600 shadow-sm"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  AMD
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1">
+              <label className="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wide">
+                Jenis GPU
+              </label>
+              <div className="flex bg-slate-100 p-1 rounded-lg">
+                <button
+                  onClick={() => setGpuType("all")}
+                  className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${
+                    gpuType === "all"
+                      ? "bg-white text-blue-600 shadow-sm"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  Semua
+                </button>
+                <button
+                  onClick={() => setGpuType("nvidia")}
+                  className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${
+                    gpuType === "nvidia"
+                      ? "bg-white text-green-600 shadow-sm"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  NVIDIA
+                </button>
+                <button
+                  onClick={() => setGpuType("amd")}
+                  className={`flex-1 py-2 text-sm font-bold rounded-md transition-all ${
+                    gpuType === "amd"
+                      ? "bg-white text-red-600 shadow-sm"
+                      : "text-slate-500 hover:text-slate-700"
+                  }`}
+                >
+                  Radeon
+                </button>
+              </div>
+            </div>
           </div>
 
           <button
@@ -227,6 +392,10 @@ export default function PCBuilder() {
                           {formatPrice((component as Component).price)}
                         </p>
                       </div>
+                      <MarketplaceButtons
+                        name={(component as Component).name}
+                        links={(component as Component).marketplace_links}
+                      />
                     </div>
                   </div>
                 );

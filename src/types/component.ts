@@ -8,7 +8,12 @@ export interface Component {
   image_url: string;
   description: string;
   specs: string;
-  marketplace_link?: string;
+  marketplace_link?: string; // Deprecated, use marketplace_links instead
+  marketplace_links?: {
+    shopee?: string;
+    tokopedia?: string;
+    lazada?: string;
+  };
   created_at: string;
   updated_at: string;
 }
